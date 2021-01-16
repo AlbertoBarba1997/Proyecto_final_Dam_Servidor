@@ -18,7 +18,7 @@ public class ServerThread extends Thread {
 
     
     public ServerThread(Socket socketCliente) {
-        super("Ahorcado1ServerThread");
+        super("CadenasServerThread");
         this.socketCliente = socketCliente;
     }
 
@@ -36,7 +36,7 @@ public class ServerThread extends Thread {
                 
                  System.out.println("llega:"+ inputLine);
 		outputLine = kkp.processInput(inputLine);
-                System.out.println("Server Thread: envia de vuelta"+ outputLine);
+                System.out.println("Server Thread: envia de vuelta"+ outputLine+"\n");
 		out.println(outputLine);
                 out.flush();
                 

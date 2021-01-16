@@ -42,7 +42,8 @@ public class Protocol {
         if (estado == INICIAL) {
 
             /// 1) LOG CLIENTE
-            if (theInput.contains("C1-LOG_CLIENTE")) {
+            if (theInput.contains("C1-LOG_CLIENTE")) 
+            {
                 String usuario = obtenerParametro(theInput, 1);
                 String contraseña = obtenerParametro(theInput, 2);
 
@@ -55,7 +56,6 @@ public class Protocol {
                         estado = CLIENTE_LOGUEADO;
                     } else {
                         nIntentosLoguear++;
-                        System.out.println("n intentos fallidos xD "+nIntentosLoguear);
                         if(nIntentosLoguear<3){
                             theOutput = "S3-LOG_INCORRECTO";
                         }else{                                           
@@ -80,7 +80,8 @@ public class Protocol {
 
             }
             /// 2) REGISTRAR CONTRASEÑA CLIENTE
-            else if(theInput.contains("C2-REGISTRAR_CONTRASEÑA")){
+            else if(theInput.contains("C2-REGISTRAR_CONTRASEÑA"))
+            {
                 String correo=obtenerParametro(theInput, 1);
                 String contraseña=obtenerParametro(theInput, 2);
                 
@@ -94,7 +95,8 @@ public class Protocol {
             }
             
             /// 3) LOG TRABAJADOR
-            else if(theInput.contains("C4-LOG_TRABAJADOR")){
+            else if(theInput.contains("C4-LOG_TRABAJADOR"))
+            {
                 String dni=obtenerParametro(theInput, 1);
                 String clave=obtenerParametro(theInput, 2);
                 
@@ -109,13 +111,15 @@ public class Protocol {
 
         }
         //B) ESTADO ESPERA = Se entra por fallar 3 veces el log y mientras este en él, toda respuesta del server sera "nula" hasta que pase el tiempo de penalizacion.
-        else if(estado==ESPERA){
+        else if(estado==ESPERA)
+        {
             
             theOutput="S3-EN_ESPERA:"+esperaThread.getSegundosRestantesEspera();
         }
         
         //C) ESTADO ADMIN LOGUEADO
-        else if(estado==ADMIN_LOGUEADO){
+        else if(estado==ADMIN_LOGUEADO)
+        {
             ////TRABAJADORES ////
             //1) LISTAR TRABAJADORES
             if(theInput.contains("C6-LISTA_TRABAJADORES")){
@@ -123,7 +127,8 @@ public class Protocol {
                 
             }
             //2) ALTA TRABAJADOR
-            else if(theInput.contains("C8-REGISTRAR_TRABAJADOR")){
+            else if(theInput.contains("C8-REGISTRAR_TRABAJADOR"))
+            {
                 String dni=obtenerParametro(theInput, 1);
                 String nombre=obtenerParametro(theInput, 2);
                 String apellidos=obtenerParametro(theInput, 3);
@@ -145,7 +150,8 @@ public class Protocol {
                 }
             }
             //3) BAJA TRABAJADOR
-            else if(theInput.contains("C7_ELIMINAR_TRABAJADOR")){
+            else if(theInput.contains("C7_ELIMINAR_TRABAJADOR"))
+            {
                 String dni=obtenerParametro(theInput, 1);
                 boolean eliminado=conexionBD.eliminarTrabajador(dni);
                 if(eliminado) theOutput="S13-ELIMINACION_COMPLETADA";
@@ -153,7 +159,8 @@ public class Protocol {
             }
             
             //4) MODIFICAR TRABAJADOR
-            else if(theInput.contains("C9-MODIFICAR_TRABAJADOR")){
+            else if(theInput.contains("C9-MODIFICAR_TRABAJADOR"))
+            {
                 String dni=obtenerParametro(theInput, 1);
                 String nombre=obtenerParametro(theInput, 2);
                 String apellidos=obtenerParametro(theInput, 3);
@@ -175,15 +182,16 @@ public class Protocol {
                 }
             }
             //5) FILTRAR TRABAJADOR
-            else if (theInput.contains("C10-LISTAR_BUSQUEDA_TRABAJADORES")) {
+            else if (theInput.contains("C10-LISTAR_BUSQUEDA_TRABAJADORES")) 
+            {
                 
                 String patronBusqueda = obtenerParametro(theInput, 1);
-                System.out.println("Llega a modificar, patron:"+ patronBusqueda);
                 theOutput = conexionBD.listarTrabajadoresFiltrados(patronBusqueda);
             }
             
             //6)FILTRAR ROL
-            else if (theInput.contains("C11-FILTRAR_TRABAJADOR_ROL")) {
+            else if (theInput.contains("C11-FILTRAR_TRABAJADOR_ROL")) 
+            {
                 
                 int nRol =Integer.parseInt(obtenerParametro(theInput, 1));
                 String patron=obtenerParametro(theInput, 2);
@@ -192,13 +200,14 @@ public class Protocol {
             
             /// ROLES Y CLAVES ///
             //7)LISTAR ROLES
-            else if (theInput.contains("C12-LISTA_CLAVES")) {
-                
+            else if (theInput.contains("C12-LISTA_CLAVES")) 
+            {
                 theOutput=conexionBD.listarClaves();
-                
             }
+            
             //8) ALTA ROL
-            else if(theInput.contains("C13-REGISTRAR_ROL")){
+            else if(theInput.contains("C13-REGISTRAR_ROL"))
+            {
                 String nombre=obtenerParametro(theInput, 1);
                 String clave=obtenerParametro(theInput, 2);
                 
@@ -206,16 +215,100 @@ public class Protocol {
                 if(registrado) theOutput="S15-REGISTRO_COMPLETADO";
                 else theOutput="S12-ERROR_QUERY";
             }
+            
             //9) ELIMINAR ROL
-            else if(theInput.contains("C14_ELIMINAR_ROL")){
+            else if(theInput.contains("C14_ELIMINAR_ROL"))
+            {
                 int id=Integer.parseInt(obtenerParametro(theInput, 1));
                 boolean eliminado=conexionBD.bajaRol(id);
                 if(eliminado) theOutput="S13-ELIMINACION_COMPLETADA";
                 else theOutput="S14-ERROR_ELIMINACION";
                 
             }
+            /// CLIENTES ///
+            //10) MOSTRAR CLIENTES
+            else if(theInput.contains("C15-LISTA_CLIENTES"))
+            {
+                theOutput=conexionBD.listarClientes();
+            }
             
+            //11) FILTRAR CLIENTES
+            else if(theInput.contains("C17-LISTAR_BUSQUEDA_CLIENTES")){
+                String patronBusqueda = obtenerParametro(theInput, 1);
+                theOutput = conexionBD.listarClientesFiltrados(patronBusqueda);
+            }
+            
+             //12) MOSTRAR INFO CLIENTE
+            else if(theInput.contains("C16-MOSTRAR_CLIENTE")){
+                String dniCliente = obtenerParametro(theInput, 1);
+                theOutput = conexionBD.mostrarCliente(dniCliente);
+            }
+            
+            //13) ALTA CLIENTE
+            else if(theInput.contains("C18-ALTA_CLIENTE")){
+                String dniCliente = obtenerParametro(theInput, 1);
+                String nombre = obtenerParametro(theInput, 2);
+                String apellidos = obtenerParametro(theInput, 3);
+                String correo = obtenerParametro(theInput, 4);
+                int peso  = Integer.parseInt(obtenerParametro(theInput, 5));
+                float altura= Float.parseFloat(obtenerParametro(theInput, 6));
+                String rutaFoto=obtenerParametro(theInput,7);
+                String notas=obtenerParametro(theInput, 8);
+                
+                
+                theOutput = conexionBD.altaCliente(dniCliente,nombre, apellidos,correo,peso,altura,rutaFoto,notas);
+            }
           
+            //14) ELIMINAR CLIENTE
+             else if(theInput.contains("C19_ELIMINAR_CLIENTE")){
+                String dniCliente = obtenerParametro(theInput, 1);
+
+                boolean eliminado=conexionBD.eliminarCliente(dniCliente);
+                
+                if(eliminado)   theOutput="S25-CLIENTE_ELIMINADO";
+                else            theOutput="S26-CLIENTE_NO_ENCONTRADO";
+            }
+             
+             
+            //15) ELIMINAR FOTO
+             else if(theInput.contains("C20_ELIMINAR_FOTO")){
+                String rutaImg = obtenerParametro(theInput, 1);
+                System.out.println("Servidor: entra en eliminar foto con:"+rutaImg);
+                conexionBD.eliminarFoto(rutaImg);
+                theOutput="S28-ELIMINADA";
+            }
+            
+            //16) ALTA CLASE
+            else if(theInput.contains("C21-ALTA_CLASE")){
+               
+                String nombre = obtenerParametro(theInput, 1);
+                int aforo  = Integer.parseInt(obtenerParametro(theInput, 2));
+                String rutaImg = obtenerParametro(theInput, 3);
+                String descripcion = obtenerParametro(theInput, 4);
+                
+                theOutput = conexionBD.altaClase(nombre,aforo,rutaImg,descripcion);
+            }
+            //17) MOSTRAR CLASES
+            else if(theInput.contains("C22-LISTAR_CLASES"))
+            {
+                theOutput=conexionBD.listarClases();
+            }
+             //18) MOSTRAR INFO CLASES
+            else if(theInput.contains("C23-MOSTRAR_CLASE"))
+            {
+                String nombreClase = obtenerParametro(theInput, 1);
+                theOutput = conexionBD.mostrarClase(nombreClase);
+            }
+            
+            //19) ELIMINAR CLASES
+             else if(theInput.contains("C24_ELIMINAR_CLASE")){
+                String nombreCliente = obtenerParametro(theInput, 1);
+
+                boolean eliminado=conexionBD.eliminarClase(nombreCliente);
+                
+                if(eliminado)   theOutput="S34-CLASE_ELIMINADA";
+                else            theOutput="S33-CLASE_NO_ENCONTRADA";
+            }
             
             
 

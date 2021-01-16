@@ -6,6 +6,8 @@
 package Servidor;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.sql.CallableStatement;
 import java.sql.Connection;
@@ -16,6 +18,7 @@ import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+
 /**
  *
  * @author juana
@@ -24,13 +27,26 @@ public class NewMain {
     
     ConexionBD conexBD=new ConexionBD();
     
-    public static void main(String[] args) throws SQLException {
+    public static void main(String[] args) throws SQLException, IOException {
         
-        ConexionBD conexion=new ConexionBD();
+        File f=new File("./fotos_usuarios");
+        for(File ff:f.listFiles()){
+            String fileNameWithOutExt = ff.getName().replaceFirst("[.][^.]+$", "");
+                int n=Integer.parseInt(fileNameWithOutExt);
+                
+                System.out.println(ff.getPath());
+                 System.out.println(ff.getAbsolutePath());
+                  System.out.println(ff.getCanonicalPath());
+                
+        }
+        
+        /*ConexionBD conexion=new ConexionBD();
         String correo="cliente2@gmail.com";
+        String dniCliente="39576918A";
+        System.out.println(conexion.mostrarCliente(dniCliente));
         System.out.println(conexion.comprobarCorreoRegistrado(correo));
         System.out.println(conexion.comprobarContraseñaNoRegistrada(correo));
-        System.out.println(conexion.loginTrabajadorBD("45380203F", "0402"));
+        System.out.println(conexion.loginTrabajadorBD("45380203F", "0402"));*/
         
         /*if(startConection(RUTA,USER,PW)){
             System.out.println("Se ha conectado");
