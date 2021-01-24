@@ -12,6 +12,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Time;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -829,5 +830,183 @@ public class ConexionBD {
         
         return eliminado;
     }
+    
+    
+    String listarHorarios() {
+        String resultado = "S35-HORARIO";
+        try {
+            String query = "SELECT horario.id,horario.dia,horario.hora, clase.nombre from horario INNER JOIN clase ON horario.id_clase=clase.id ORDER BY horario.hora ASC;"; 
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+
+            ResultSet rs = preparedStatement.executeQuery();
+
+            int registros = 0;
+
+            while (rs.next()) {
+                
+                int id = rs.getInt(1);
+                int dia = rs.getInt(2);
+                Time horaTime=rs.getTime(3);
+                String nombreClase = rs.getString(4);
+                
+                
+                int horas=horaTime.getHours();
+                int minutos=horaTime.getMinutes();
+                String hora=horas+":"+minutos;
+                if(minutos==0) hora+="0"; //Esto por que si es 0 imprime 14:0 en lugar de 14:00
+                System.out.println("Hora:"+hora);
+
+                if (registros < 1) {
+                    resultado += ":";  //Para asi saber si hay almenos 1 trabajador registrado
+                } else {
+                    resultado += ",";  //Delimitador entre trabajador y trabajador
+                }
+                resultado += id + "&" + dia + "&" + hora + "&" + nombreClase;
+                registros++;
+                //Ira añadiendo al mensaje resultado todos los registros de trabajadores, separando sus atributos con "/"
+
+            }
+
+        } catch (SQLException ex) {
+            resultado = "S12-ERROR_QUERY";
+        }
+
+        return resultado;
+    }
+    String listarClasesId() {
+        String resultado = "S36-LISTA_CLASES";
+        try {
+            String query = "SELECT id, nombre from clase ORDER BY nombre ASC;"; 
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+
+            ResultSet rs = preparedStatement.executeQuery();
+
+            int registros = 0;
+
+            while (rs.next()) {
+                
+                int id = rs.getInt(1);
+                String nombreClase = rs.getString(2);
+                
+                if (registros < 1) {
+                    resultado += ":";  //Para asi saber si hay almenos 1 trabajador registrado
+                } else {
+                    resultado += ",";  //Delimitador entre trabajador y trabajador
+                }
+                resultado += id + "&" + nombreClase;
+                registros++;
+                //Ira añadiendo al mensaje resultado todos los registros de trabajadores, separando sus atributos con "/"
+
+            }
+
+        } catch (SQLException ex) {
+            resultado = "S12-ERROR_QUERY";
+        }
+
+        return resultado;
+    }
+    String listarEntrenadores() {
+        String resultado = "S37-LISTA_ENTRENADORES";
+        try {
+            String query = "SELECT id, nombre, apellido from usuario WHERE id_rol=2 ORDER BY nombre ASC"; 
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+
+            ResultSet rs = preparedStatement.executeQuery();
+            
+            int registros = 0;
+
+            while (rs.next()) {
+                
+                int id = rs.getInt(1);
+                String nombre = rs.getString(2);
+                String apellido= rs.getString(3);
+
+                if (registros < 1) {
+                    resultado += ":";  //Para asi saber si hay almenos 1 trabajador registrado
+                } else {
+                    resultado += ",";  //Delimitador entre trabajador y trabajador
+                }
+                resultado += id + "&" + nombre + "&" + apellido;
+                registros++;
+                //Ira añadiendo al mensaje resultado todos los registros de trabajadores, separando sus atributos con "/"
+
+            }
+
+        } catch (SQLException ex) {
+            resultado = "S12-ERROR_QUERY";
+        }
+
+        return resultado;
+    }
+
+    public String altaHorario(int idClase, int idEntrenador, int nDia, Time hora) {
+       String resultado;
+        try {
+            String query = "INSERT INTO HORARIO (id_clase, id_entrenador, hora, dia) VALUES" +
+                "(?, ?, ?, ?);";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            
+            preparedStatement.setInt(1, idClase);
+            preparedStatement.setInt(2, idEntrenador);
+            preparedStatement.setTime(3, hora);
+            preparedStatement.setInt(4, nDia);
+            
+
+            int filasModificadas= preparedStatement.executeUpdate();
+            if(filasModificadas>0)  resultado="S38-HORARIO_REGISTRADO";
+            else                    resultado="S39-ERROR_REGISTRO:Error de registro. Es posible que la clase o el entrenador hayan sido modificadas/eliminadas. Intentelo de nuevo.";
+            
+    
+        } catch (SQLException ex) {
+            if(ex.toString().contains("Duplicate")) return resultado="S39-ERROR_REGISTRO:Registro duplicado. El entrenador imparte otra clase en ese mismo horario";            
+            
+            resultado="S39-ERROR_REGISTRO: Error de insercion, revise los parametros seleccionados. Pueden haber sido modificados/eliminados.";
+            ex.printStackTrace();
+        }
+        
+        return resultado;
+    }
+
+    String restablecerHorario() {
+      String resultado;
+        try {
+            String query = "DELETE FROM horario";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);            
+
+            int filasModificadas= preparedStatement.executeUpdate();
+            if(filasModificadas>0)  resultado="S40-HORARIO_RESTABLECIDO";
+            else                    resultado="S41-ERROR_RESTABLECER";
+            
+    
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            resultado="S0-ERROR";
+        }
+        
+        return resultado;
+    }
+
+    String eliminarHorario(int id) {
+        
+        String resultado;
+        try {
+            String query = "DELETE FROM horario WHERE id=?";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            preparedStatement.setInt(1, id);
+
+            int filasModificadas= preparedStatement.executeUpdate();
+            if(filasModificadas>0)  resultado="S40-HORARIO_ELIMINADO";
+            else                    resultado="S41-ERROR_ELIMINACION:No se ha podido eliminar. La clase ha debido de ser modificada/eliminada ya.";
+            
+    
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            resultado="S41-ERROR_ELIMINACION:No se ha podido eliminar. La clase ha debido de ser modificada/eliminada ya.";
+        }
+        
+        return resultado;
+        
+    }
+    
     
 }

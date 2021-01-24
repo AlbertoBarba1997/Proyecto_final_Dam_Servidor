@@ -4,10 +4,12 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.sql.CallableStatement;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Time;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -310,7 +312,46 @@ public class Protocol {
                 else            theOutput="S33-CLASE_NO_ENCONTRADA";
             }
             
+            //20) LISTAR HORARIOS
+             else if(theInput.contains("C25-LISTAR_HORARIO")){
+
+               theOutput=conexionBD.listarHorarios();
+            }
+            //21) LISTAR CLASE
+            else if (theInput.contains("C26-LISTAR_CLASE_DISPONIBLE")) {
+                theOutput = conexionBD.listarClasesId();
+            } 
             
+            //22) LISTAR ENTRENADORES
+            else if (theInput.contains("C27-LISTAR_ENTRENADORES")) {
+                theOutput = conexionBD.listarEntrenadores();
+            }
+            //23) ALTA HORARIO
+            else if(theInput.contains("C28-ALTA_HORARIO")){
+               
+                int idClase  = Integer.parseInt(obtenerParametro(theInput, 1));
+                int idEntrenador  = Integer.parseInt(obtenerParametro(theInput, 2));
+                int nDia  = Integer.parseInt(obtenerParametro(theInput, 3));
+                String hora=Utilidades.obtenerParametro(theInput, 4)+":00";
+                System.out.println(hora);
+                Time horaTime=Time.valueOf(hora);
+                
+                theOutput = conexionBD.altaHorario(idClase,idEntrenador,nDia,horaTime);
+            }
+            //24) RESTABLECER HORARIO
+            else if (theInput.contains("C29-RESTBLECER_HORARIO")) {
+               theOutput=conexionBD.restablecerHorario();
+               
+            }
+            
+            //25) ELIMINAR HORARIO SELECCIONADO
+            else if (theInput.contains("C30_ELIMINAR_HORARIO")) {
+                int id = Integer.parseInt(Utilidades.obtenerParametro(theInput, 1));
+                theOutput = conexionBD.eliminarHorario(id);
+
+            }
+            
+
 
         }
 

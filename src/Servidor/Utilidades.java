@@ -30,10 +30,12 @@ public class Utilidades {
 
         char[] caracteres = theInput.toCharArray();
         String parametro = "";
+        boolean empieza=false;
 
         for (char c : caracteres) {
 
-            if (c == ':') {
+            if (c == ':' && empieza==false) {
+                empieza=true;
                 nParametro++;
             } else if (c == ',') {
                 nParametro++;
