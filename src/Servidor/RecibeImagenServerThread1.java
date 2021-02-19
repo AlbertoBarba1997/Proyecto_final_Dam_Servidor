@@ -59,7 +59,7 @@ public class RecibeImagenServerThread1 extends Thread {
 
                 imagenTotalAnterior = imagenTotal;
                 if (nBytesImagen < 65536) {
-                    break;
+                    break;                      // Si llega un conjunto de bytes que no es de 65536, significa que es el ultimo conjunto de bytes, por lo que sale.
                 }
 
             }
@@ -72,7 +72,6 @@ public class RecibeImagenServerThread1 extends Thread {
             File imagen=new File(RUTA_CARPETA_IMAGENES+"/"+nombreImagen);
             System.out.println(imagen.getPath());
             boolean creada=imagen.createNewFile();
-            System.out.println(creada);
             if(!creada){
                 out.write("S23-ERROR_SUBIDA\n");
                 out.flush();

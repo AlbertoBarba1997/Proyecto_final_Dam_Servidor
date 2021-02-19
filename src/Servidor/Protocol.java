@@ -10,6 +10,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -107,19 +108,25 @@ public class Protocol {
                     theOutput="S2-LOG_INCORRECTO";
                 }else{
                     theOutput="S10-LOG_CORRECTO_TR:"+resultadoRolNombre;
-                    estado=ADMIN_LOGUEADO;
+                    int idTrabajador=Integer.parseInt(Utilidades.obtenerParametro(theOutput,1));
+                    if(idTrabajador==1){
+                        estado=ADMIN_LOGUEADO;
+                    }else{
+                        estado=ENTRENADOR_LOGUEADO;
+                    }
                 }
             }
 
         }
-        //B) ESTADO ESPERA = Se entra por fallar 3 veces el log y mientras este en él, toda respuesta del server sera "nula" hasta que pase el tiempo de penalizacion.
+        //////////////////////////////////////////////////////////////////////// B) ESTADO ESPERA ////////////////////////////////////////////////////////////////////////////////////////////
+        //Se entra por fallar 3 veces el log y mientras este en él, toda respuesta del server sera "nula" hasta que pase el tiempo de penalizacion.
         else if(estado==ESPERA)
         {
             
             theOutput="S3-EN_ESPERA:"+esperaThread.getSegundosRestantesEspera();
         }
         
-        //C) ESTADO ADMIN LOGUEADO
+        //////////////////////////////////////////////////////////////////////// C)ESTADO : ADMIN LOGUEADO /////////////////////////////////////////////////////////////////////////////////
         else if(estado==ADMIN_LOGUEADO)
         {
             ////TRABAJADORES ////
@@ -270,10 +277,109 @@ public class Protocol {
                 if(eliminado)   theOutput="S25-CLIENTE_ELIMINADO";
                 else            theOutput="S26-CLIENTE_NO_ENCONTRADO";
             }
+            //32) ELIMINAR FOTO
+            else if(theInput.contains("C20_ELIMINAR_FOTO")){
+                String rutaImg = obtenerParametro(theInput, 1);
+                System.out.println("Servidor: entra en eliminar foto con:"+rutaImg);
+                conexionBD.eliminarFoto(rutaImg);
+                theOutput="S28-ELIMINADA";
+            }
+             //20) LISTAR HORARIOS
+             else if(theInput.contains("C25-LISTAR_HORARIO")){
+
+               theOutput=conexionBD.listarHorarios();
+            }
+            
+            //23) ALTA HORARIO
+            else if(theInput.contains("C28-ALTA_HORARIO")){
+               
+                int idClase  = Integer.parseInt(obtenerParametro(theInput, 1));
+                int idEntrenador  = Integer.parseInt(obtenerParametro(theInput, 2));
+                int nDia  = Integer.parseInt(obtenerParametro(theInput, 3));
+                String hora=Utilidades.obtenerParametro(theInput, 4)+":00";
+                System.out.println(hora);
+                Time horaTime=Time.valueOf(hora);
+                
+                theOutput = conexionBD.altaHorario(idClase,idEntrenador,nDia,horaTime);
+            }
+            //24) RESTABLECER HORARIO
+            else if (theInput.contains("C29-RESTBLECER_HORARIO")) {
+               theOutput=conexionBD.restablecerHorario();
+               
+            }
+            
+            //25) ELIMINAR HORARIO SELECCIONADO
+            else if (theInput.contains("C30_ELIMINAR_HORARIO")) {
+                int id = Integer.parseInt(Utilidades.obtenerParametro(theInput, 1));
+                theOutput = conexionBD.eliminarHorario(id);
+
+            }
+            
+             //17) MOSTRAR CLASES
+            else if(theInput.contains("C22-LISTAR_CLASES"))
+            {
+                theOutput=conexionBD.listarClases();
+            }
+             //18) MOSTRAR INFO CLASES
+            else if(theInput.contains("C23-MOSTRAR_CLASE"))
+            {
+                String nombreClase = obtenerParametro(theInput, 1);
+                theOutput = conexionBD.mostrarClase(nombreClase);
+            }
+            //21) LISTAR CLASE
+            else if (theInput.contains("C26-LISTAR_CLASE_DISPONIBLE")) {
+                theOutput = conexionBD.listarClasesId();
+            } 
+            //16) ALTA CLASE
+            else if(theInput.contains("C21-ALTA_CLASE")){
+               
+                String nombre = obtenerParametro(theInput, 1);
+                int aforo  = Integer.parseInt(obtenerParametro(theInput, 2));
+                String rutaImg = obtenerParametro(theInput, 3);
+                String descripcion = obtenerParametro(theInput, 4);
+                
+                theOutput = conexionBD.altaClase(nombre,aforo,rutaImg,descripcion);
+            }
+            //19) ELIMINAR CLASES
+             else if(theInput.contains("C24_ELIMINAR_CLASE")){
+                String nombreCliente = obtenerParametro(theInput, 1);
+
+                boolean eliminado=conexionBD.eliminarClase(nombreCliente);
+                
+                if(eliminado)   theOutput="S34-CLASE_ELIMINADA";
+                else            theOutput="S33-CLASE_NO_ENCONTRADA";
+            }
+            //22) LISTAR ENTRENADORES
+            else if (theInput.contains("C27-LISTAR_ENTRENADORES")) {
+                theOutput = conexionBD.listarEntrenadores();
+            }
+            
+            
+        //////////////////////////////////////////////////////////////////////// ESTADO : COACH LOGUEADO /////////////////////////////////////////////////////////////////////////////////     
+        }else if(estado==ENTRENADOR_LOGUEADO){
              
-             
+            /// CLIENTES ///
+            //10) MOSTRAR CLIENTES
+            if(theInput.contains("C15-LISTA_CLIENTES"))
+            {
+                theOutput=conexionBD.listarClientes();
+            }
+            
+            //11) FILTRAR CLIENTES
+            else if(theInput.contains("C17-LISTAR_BUSQUEDA_CLIENTES")){
+                String patronBusqueda = obtenerParametro(theInput, 1);
+                theOutput = conexionBD.listarClientesFiltrados(patronBusqueda);
+            }
+            
+             //12) MOSTRAR INFO CLIENTE
+            else if(theInput.contains("C16-MOSTRAR_CLIENTE")){
+                String dniCliente = obtenerParametro(theInput, 1);
+                theOutput = conexionBD.mostrarCliente(dniCliente);
+            } 
+            
+            
             //15) ELIMINAR FOTO
-             else if(theInput.contains("C20_ELIMINAR_FOTO")){
+            else if(theInput.contains("C20_ELIMINAR_FOTO")){
                 String rutaImg = obtenerParametro(theInput, 1);
                 System.out.println("Servidor: entra en eliminar foto con:"+rutaImg);
                 conexionBD.eliminarFoto(rutaImg);
@@ -302,15 +408,7 @@ public class Protocol {
                 theOutput = conexionBD.mostrarClase(nombreClase);
             }
             
-            //19) ELIMINAR CLASES
-             else if(theInput.contains("C24_ELIMINAR_CLASE")){
-                String nombreCliente = obtenerParametro(theInput, 1);
-
-                boolean eliminado=conexionBD.eliminarClase(nombreCliente);
-                
-                if(eliminado)   theOutput="S34-CLASE_ELIMINADA";
-                else            theOutput="S33-CLASE_NO_ENCONTRADA";
-            }
+            
             
             //20) LISTAR HORARIOS
              else if(theInput.contains("C25-LISTAR_HORARIO")){
@@ -351,9 +449,81 @@ public class Protocol {
 
             }
             
+            //26) LISTAR EJERCICIOS
+            else if (theInput.contains("C31-LISTAR_EJERCICIOS")) {
+                theOutput = conexionBD.listarEjercicios();
+            }
+            //27) LISTAR MUSUCULOS
+            else if (theInput.contains("C32-LISTAR_MUSCULOS")) {
+                theOutput = conexionBD.listarMusculos();
+            }
+            //28) LISTAR EJERCICIOS FILTRADOS
+            else if (theInput.contains("C33-FILTRAR_EJERCICIOS")) {
+                String tipo=Utilidades.obtenerParametro(theInput, 1);
+                String musculo=Utilidades.obtenerParametro(theInput, 2);
+                String nombreBusqueda=Utilidades.obtenerParametro(theInput, 3);
 
+                theOutput = conexionBD.listarEjerciciosFiltrados(tipo,musculo,nombreBusqueda);
+            }
+            //28) LISTAR EJERCICIOS FILTRADOS
+            else if (theInput.contains("C35-FILTRAR_EJERCICIOS_CARDIO")) {
+                String resultado = "S42-LISTA_EJERCICIOS:";
+                String nombreBusqueda=Utilidades.obtenerParametro(theInput, 1);
+                    
+                theOutput = resultado+conexionBD.listarEjerciciosFiltradosCardio(nombreBusqueda);
+            }
+            //30) ELIMINAR EJERCICIO
+            else if (theInput.contains("C34_ELIMINAR_EJERCICIO")) {
+                int id=Integer.parseInt(Utilidades.obtenerParametro(theInput, 1));
+                theOutput = conexionBD.eliminarEjercicio(id);
+            }
+            
+            //31) ALTA MUSCULO
+            else if (theInput.contains("C36-ALTA_MUSCULO")) {
+                String nombreMusculo=Utilidades.obtenerParametro(theInput, 1);
+                theOutput = conexionBD.altaMusculo(nombreMusculo);
+            }
+            //32) ELIMINAR FOTO
+            else if(theInput.contains("C20_ELIMINAR_FOTO")){
+                String rutaImg = obtenerParametro(theInput, 1);
+                System.out.println("Servidor: entra en eliminar foto con:"+rutaImg);
+                conexionBD.eliminarFoto(rutaImg);
+                theOutput="S28-ELIMINADA";
+            }
+            //33) ALTA EJERCICIO
+            else if (theInput.contains("C37-ALTA_EJERCICIO")) {
+                String nombreEjercicio=Utilidades.obtenerParametro(theInput, 1);
+                String tipo=Utilidades.obtenerParametro(theInput, 2);
+                String descripcion=Utilidades.obtenerParametro(theInput, 3);
+                String rutaImg=Utilidades.obtenerParametro(theInput, 4);
+                String rutaVideo=Utilidades.obtenerParametro(theInput, 5);
+                ArrayList<String> listaMusculos=obtenerlistaMusculos(Utilidades.obtenerParametro(theInput, 6));
+                
+                theOutput = conexionBD.altaEjercicio(nombreEjercicio, tipo, descripcion, rutaImg, rutaVideo, listaMusculos);
+            }
+            //34) BAJA MUSCULO
+            else if (theInput.contains("C38_ELIMINAR_MUSCULO")) {
+                String nombre=Utilidades.obtenerParametro(theInput, 1);
+                theOutput = conexionBD.bajaMusculo(nombre);
+            }
+            //35) ALTA TABLA MODELO
+            else if (theInput.contains("C39-ALTA_TABLA_MODELO")) {
+                String datosTabla=Utilidades.obtenerParametro(theInput, 1);
+                System.out.println("atributo 1:"+Utilidades.obtenerAtributo(datosTabla, 0,'&')+"  atributo2:"+Utilidades.obtenerAtributo(datosTabla, 1,'&'));
+                String nombreTabla=Utilidades.obtenerAtributo(datosTabla,0 ,'&');
+                int nDias=Integer.parseInt(Utilidades.obtenerAtributo(datosTabla, 1,'&'));
+                
+                ArrayList<Object[]> listaEjercicios=obtenerListaEjercicios(theInput);
+                theOutput = conexionBD.altaTablaModelo(nombreTabla,nDias,listaEjercicios);
+            }
+            //36) ALTA TABLA PERSONALIZADA
+            else if (theInput.contains("C38_ELIMINAR_MUSCULO")) {
+                String nombre=Utilidades.obtenerParametro(theInput, 1);
+                theOutput = conexionBD.bajaMusculo(nombre);
+            }
 
         }
+    
 
         return theOutput;
     }
@@ -389,6 +559,54 @@ public class Protocol {
     public void volverEstadoInicial(){
         //Metodo para que cuando pase el tiempo de espera de penalizacion por fallar log, vuelva al estado inicial, no pudiendo acceder a los demas estados.
         estado=INICIAL; 
+    }
+
+    private ArrayList<String> obtenerlistaMusculos(String musculosCadena) {
+        char[] cadenaChar=musculosCadena.toCharArray();
+        ArrayList<String> listaMusculos=new ArrayList<>();
+        String musculo="";
+        boolean primerMusculo=false;
+        for (char c : cadenaChar) {
+            if (c == '$') {
+                if (primerMusculo == false) {
+                    primerMusculo = true;
+                } else {
+                    listaMusculos.add(musculo);
+                    musculo = "";
+                }
+
+            } else {
+                musculo += c;
+            }
+        }
+        listaMusculos.add(musculo);
+        return listaMusculos;
+    }
+
+    private ArrayList<Object[]> obtenerListaEjercicios(String theImput) {
+        ArrayList<Object[]> listaEjercicios=new ArrayList<Object[]>();
+        
+        for(int i=1; i<Utilidades.contarParametros(theImput); i++){
+            //Empieza en 1 y no en 0 por que el parametro 1 son los datos basicos, no ejercicios
+            String datosEjercicioParametro=Utilidades.obtenerParametro(theImput, i+1);
+            
+            int nDia=Integer.parseInt(Utilidades.obtenerAtributo(datosEjercicioParametro,0,'&'));
+            int idEjercicio=Integer.parseInt(Utilidades.obtenerAtributo(datosEjercicioParametro,1,'&'));
+            int reps = 0;
+            int series = 0;
+            try {
+                reps = Integer.parseInt(Utilidades.obtenerAtributo(datosEjercicioParametro, 2,'&'));
+                series = Integer.parseInt(Utilidades.obtenerAtributo(datosEjercicioParametro, 3,'&'));
+            } catch (Exception e) {
+                //Si vienen vacias pues se quedan en 0 y ya está
+            }
+            String tiempo=Utilidades.obtenerAtributo(datosEjercicioParametro,4,'&');
+            System.out.println("nDia:"+ nDia+ " idEjercicio:"+ idEjercicio+" reps:"+reps+ " series:"+series+ " tiempo:"+ tiempo);
+            Object[] datosEjercicio={nDia,idEjercicio,reps,series,tiempo};
+            listaEjercicios.add(datosEjercicio);
+        }
+        return listaEjercicios;
+       
     }
     
     

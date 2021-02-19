@@ -5,6 +5,7 @@
  */
 package Servidor;
 
+import com.mysql.jdbc.exceptions.MySQLIntegrityConstraintViolationException;
 import java.io.File;
 import java.sql.CallableStatement;
 import java.sql.Connection;
@@ -13,6 +14,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -682,8 +684,8 @@ public class ConexionBD {
         return resultado;
     }
 
-    protected void eliminarFoto(String rutaImg) {
-        
+    protected boolean eliminarFoto(String rutaImg) {
+        boolean eliminada=false;
         File imagenFile=new File(rutaImg);
         if(imagenFile.exists()){
             System.out.println("ConexionDB: entra qui a eliminar: existe el File");
@@ -691,11 +693,11 @@ public class ConexionBD {
             String mimetype = new MimetypesFileTypeMap().getContentType(imagenFile);
             String type = mimetype.split("/")[0];
             if (type.equals("image")) {
-                //System.out.println("Intenta eliminarla");
-                //System.out.println("Eliminada:"+imagenFile.delete());
+                eliminada=imagenFile.delete();
             }
             
         }
+        return eliminada;
     }
     protected boolean eliminarCliente(String dni) {
 
@@ -835,7 +837,7 @@ public class ConexionBD {
     String listarHorarios() {
         String resultado = "S35-HORARIO";
         try {
-            String query = "SELECT horario.id,horario.dia,horario.hora, clase.nombre from horario INNER JOIN clase ON horario.id_clase=clase.id ORDER BY horario.hora ASC;"; 
+            String query = "SELECT horario.id,horario.dia,horario.hora, clase.nombre, usuario.nombre from horario INNER JOIN clase ON horario.id_clase=clase.id INNER JOIN usuario ON horario.id_entrenador=usuario.id ORDER BY horario.hora ASC;"; 
             PreparedStatement preparedStatement = conexion.prepareStatement(query);
 
             ResultSet rs = preparedStatement.executeQuery();
@@ -848,6 +850,7 @@ public class ConexionBD {
                 int dia = rs.getInt(2);
                 Time horaTime=rs.getTime(3);
                 String nombreClase = rs.getString(4);
+                String nombreEntrenador= rs.getString(5);
                 
                 
                 int horas=horaTime.getHours();
@@ -861,7 +864,7 @@ public class ConexionBD {
                 } else {
                     resultado += ",";  //Delimitador entre trabajador y trabajador
                 }
-                resultado += id + "&" + dia + "&" + hora + "&" + nombreClase;
+                resultado += id + "&" + dia + "&" + hora + "&" + nombreClase+ "&" + nombreEntrenador;
                 registros++;
                 //Ira añadiendo al mensaje resultado todos los registros de trabajadores, separando sus atributos con "/"
 
@@ -1007,6 +1010,395 @@ public class ConexionBD {
         return resultado;
         
     }
+
+    String listarEjercicios() {
+        String resultado = "S42-LISTA_EJERCICIOS";
+        try {
+            String query = "SELECT id, nombre, descripcion, tipo, rutaImg, rutaVideo from ejercicio ORDER BY nombre ASC"; 
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+
+            ResultSet rs = preparedStatement.executeQuery();
+            
+            int registros = 0;
+
+            while (rs.next()) {
+                
+                int id = rs.getInt(1);
+                String nombre = rs.getString(2);
+                String descripcion= rs.getString(3);
+                String tipo= rs.getString(4);
+                String musculos=listarMusculosDeEjercicio(id);
+                String rutaImg=rs.getString(5);
+                String rutaVideo=rs.getString(6);
+
+                if (registros < 1) {
+                    resultado += ":";  //Para asi saber si hay almenos 1 trabajador registrado
+                } else {
+                    resultado += ",";  //Delimitador entre trabajador y trabajador
+                }
+                resultado += id + "&" + nombre + "&" + descripcion+ "&" + tipo+ "&" + musculos+ "&" + rutaImg+ "&" + rutaVideo;
+                registros++;
+                
+                
+            }
+
+        } catch (SQLException ex) {
+            resultado = "S12-ERROR_QUERY";
+        }
+
+        return resultado;
+    }
+
+    public String listarMusculosDeEjercicio(int id) {
+        String resultado = " ";
+        try {
+            String query = "SELECT musculo.nombre FROM musculo INNER JOIN ejercicio_musculo_mtm ON musculo.id=ejercicio_musculo_mtm.id_musculo WHERE ejercicio_musculo_mtm.id_ejercicio=?;";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            preparedStatement.setInt(1, id);
+            ResultSet rs = preparedStatement.executeQuery();  
+
+            int registros = 0;
+
+            while (rs.next()) {
+
+                String nombre = rs.getString(1);
+
+                if (registros < 1) {
+                    resultado = "@";
+                } else {
+                    resultado += "@";
+                }
+                resultado += nombre;
+                registros++;
+
+            }
+
+        } catch (SQLException ex) {
+            resultado = " ";
+        }
+
+        return resultado;
+    }
+
+    String listarMusculos() {
+        String resultado = "S43-LISTA_MUSCULOS";
+        try {
+            String query = "SELECT nombre FROM musculo ORDER BY nombre ASC"; 
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+
+            ResultSet rs = preparedStatement.executeQuery();
+            
+            int registros = 0;
+
+            while (rs.next()) {
+                String nombre = rs.getString(1);
+
+                if (registros < 1) {
+                    resultado += ":";  //Para asi saber si hay almenos 1 trabajador registrado
+                } else {
+                    resultado += ",";  //Delimitador entre trabajador y trabajador
+                }
+                resultado += nombre;
+                registros++;
+                
+                
+            }
+
+        } catch (SQLException ex) {
+            resultado = "S12-ERROR_QUERY";
+        }
+
+        return resultado;
+    }
+
+    String listarEjerciciosFiltrados(String tipo, String musculo, String nombreBusqueda) {
+        String resultado = "S42-LISTA_EJERCICIOS";
+        try {
+            String query = "SELECT e.id, e.nombre, e.descripcion, e.tipo, e.rutaImg, e.rutaVideo from ejercicio e INNER JOIN ejercicio_musculo_mtm em ON e.id=em.id_ejercicio INNER JOIN musculo m ON m.id=em.id_musculo "
+                    + "WHERE m.nombre LIKE '%"+musculo+"%'AND e.tipo LIKE '%"+tipo+"%' AND e.nombre LIKE '%"+nombreBusqueda+"%' GROUP BY e.nombre"; 
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            ResultSet rs = preparedStatement.executeQuery();
+            
+            int registros = 0;
+
+            while (rs.next()) {
+                
+                int id = rs.getInt(1);
+                String nombre = rs.getString(2);
+                String descripcion= rs.getString(3);
+                String tip= rs.getString(4);
+                String musculos=listarMusculosDeEjercicio(id);
+                String rutaImg=rs.getString(5);
+                String rutaVideo=rs.getString(6);
+
+                if (registros < 1) {
+                    resultado += ":";  //Para asi saber si hay almenos 1 trabajador registrado
+                } else {
+                    resultado += ",";  //Delimitador entre trabajador y trabajador
+                }
+                resultado += id + "&" + nombre + "&" + descripcion+ "&" + tip+ "&" + musculos+ "&" + rutaImg+ "&" + rutaVideo;
+                registros++;
+                
+                
+            }
+            if(tipo.equals("")){
+                //Si filtra por tipo "todos" los de cardio no van a salir por que no tienen musculos, y los iner join en esta consulta no funcionan, por lo que se hacen en otra consulta y se añaden
+                String listaEjerciciosCardio=listarEjerciciosFiltradosCardio(nombreBusqueda);
+                if(!listaEjerciciosCardio.equals("")){
+                    resultado+=","+listaEjerciciosCardio;
+                }
+            }
+
+        } catch (SQLException ex) {
+            resultado = "S12-ERROR_QUERY";
+        }
+
+        return resultado;
+    }
+
+    String eliminarEjercicio(int id) {
+        String resultado;
+        try {
+            String query = "DELETE FROM ejercicio WHERE id=?";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            preparedStatement.setInt(1, id);
+
+            int filasModificadas= preparedStatement.executeUpdate();
+            if(filasModificadas>0)  resultado="S44-EJERCICIO_ELIMINADOS";
+            else                    resultado="45-ERROR_ELIMINACION: No se ha podido eliminar. El ejercicio ha debido de ser modificada/eliminada ya, actualice el sistema.";
+            
+    
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            resultado="S44-EJERCICIO_ELIMINADO: error'"+ex.getMessage()+"'";
+        }
+        
+        return resultado;
+    }
+
+    String listarEjerciciosFiltradosCardio(String nombreBusqueda) {
+        String resultado="";
+        try {
+            String query = "SELECT e.id, e.nombre, e.descripcion, e.tipo, e.rutaImg, e.rutaVideo from ejercicio e "
+                    + "WHERE e.tipo LIKE '%cardio%' AND e.nombre LIKE '%"+nombreBusqueda+"%' GROUP BY e.nombre"; 
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            ResultSet rs = preparedStatement.executeQuery();
+            
+            int registros = 0;
+
+            while (rs.next()) {
+                
+                int id = rs.getInt(1);
+                String nombre = rs.getString(2);
+                String descripcion= rs.getString(3);
+                String tip= rs.getString(4);
+                String musculos="";
+                String rutaImg=rs.getString(5);
+                String rutaVideo=rs.getString(6);
+
+                 if (registros>1) {
+                    resultado += ",";  //Delimitador entre trabajador y trabajador
+                }
+                resultado += id + "&" + nombre + "&" + descripcion+ "&" + tip+ "&" + musculos+ "&" + rutaImg+ "&" + rutaVideo;
+                registros++;
+                
+                
+            }
+
+        } catch (SQLException ex) {
+            resultado = "";
+        }
+
+        return resultado;
+    }
+
+    String altaMusculo(String nombreMusculo) {
+        String resultado;
+        try {
+            String query = "INSERT INTO musculo (nombre) VALUES (?);";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            
+            preparedStatement.setString(1, nombreMusculo);
+
+            int filasModificadas= preparedStatement.executeUpdate();
+            if(filasModificadas>0)  resultado="S46-CLASE_REGISTRADA";
+            else                    resultado="S47-ERROR_REGISTRO:Error de insercion. Actualice los parametros seleccionados (musulos, tipos...). Pueden haber sido modificados/eliminados.";
+            
+    
+        } catch (SQLException ex) {
+            if(ex.toString().contains("Duplicate")) return resultado="S47-ERROR_REGISTRO:Registro duplicad";            
+            
+            resultado="S39-ERROR_REGISTRO: Error de insercion. Actualize los parametros seleccionados (musulos, tipos...). Pueden haber sido modificados/eliminados.";
+            ex.printStackTrace();
+        }
+        
+        return resultado;
+    }
+
+
+
+    String altaEjercicio(String nombreEjercicio, String tipo, String descripcion, String rutaImg, String rutaVideo, ArrayList<String> listaMusculos) {
+        String resultado;
+        try {
+            String query = "INSERT INTO ejercicio (nombre,descripcion,tipo, rutaImg, rutaVideo) VALUES (?, ?, ?, ?, ?);";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            
+            preparedStatement.setString(1, nombreEjercicio);
+            preparedStatement.setString(2, descripcion);
+            preparedStatement.setString(3, tipo);
+            preparedStatement.setString(4, rutaImg);
+            preparedStatement.setString(5, rutaVideo);
+            
+
+            int filasModificadas= preparedStatement.executeUpdate();
+            if(filasModificadas>0)  resultado=registrarMusculosDelEjercicio(nombreEjercicio,listaMusculos);
+            else                    resultado="S47-ERROR_REGISTRO: Error de insercion. Actualize los parametros seleccionados (musulos, tipos...). Pueden haber sido modificados/eliminados.";
+            
+    
+        } catch (SQLException ex) {
+            if(ex.toString().contains("Duplicate")) return resultado="S47-ERROR_REGISTRO:duplicate";            
+            
+            resultado="S47-ERROR_REGISTRO: Error de insercion. Actualize los parametros seleccionados (musulos, tipos...). Pueden haber sido modificados/eliminados.";
+            ex.printStackTrace();
+        }
+        
+        return resultado; 
+    }
+
+    private String registrarMusculosDelEjercicio(String nombreEjercicio, ArrayList<String> listaMusculos) {
+        String resultado;
+        
+        
+        int idEjercicio=0;
+        
+        try {
+            String query1 = "Select id From ejercicio where nombre=?;";
+            PreparedStatement preparedStatement1 = conexion.prepareStatement(query1);
+            preparedStatement1.setString(1, nombreEjercicio);
+            ResultSet rs = preparedStatement1.executeQuery();
+            rs.next();
+            idEjercicio=rs.getInt(1);
+           
+            for(String nombreMusculo: listaMusculos){
+                String query2 = "SELECT id FROM musculo WHERE nombre=?;";
+                PreparedStatement preparedStatement2 = conexion.prepareStatement(query2);
+                preparedStatement2.setString(1, nombreMusculo);
+                ResultSet rs2 = preparedStatement2.executeQuery();
+                rs2.next();
+                int idMusculo=rs2.getInt(1);
+                
+                String query3 = "insert into ejercicio_musculo_mtm (id_ejercicio,id_musculo) VALUES (?,?);";
+                PreparedStatement preparedStatement3 = conexion.prepareStatement(query3);
+                preparedStatement3.setInt(1, idEjercicio);
+                preparedStatement3.setInt(2, idMusculo);
+                preparedStatement3.executeUpdate();
+      
+            }
+
+        } catch (SQLException ex) {
+            System.out.println(ex);
+        }
+
+        return "S49-MUSCULO_REGISTRADO";
+    }
+
+    String bajaMusculo(String nombre) {
+         String resultado;
+        try {
+            String query = "DELETE FROM musculo WHERE nombre=?";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            preparedStatement.setString(1, nombre);
+
+            int filasModificadas= preparedStatement.executeUpdate();
+            if(filasModificadas>0)  resultado="S51-MUSCULO_ELIMINADO";
+            else                    resultado="S50-MUSCULO_NO_ENCONTRADO";
+            
+    
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            resultado="S0-ERROR:El musculo no ha podido ser eliminado por razones desconocidas. (contacte con un tecnico)";
+        }
+        
+        return resultado;
+    }
+
+    String altaTablaModelo(String nombreTabla, int nDias, ArrayList<Object[]> listaEjercicios) {
+        String resultado;
+        try {
+            String query = "INSERT INTO tabla(nombre, dias, tabla_Base) VALUES (?, ?, ?);";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            
+           
+            preparedStatement.setString(1, nombreTabla);
+            preparedStatement.setInt(2, nDias);
+            preparedStatement.setBoolean(3, true);            
+
+            int filasModificadas= preparedStatement.executeUpdate();
+            if(filasModificadas>0)  resultado=registrarEjerciciosDeLaTabla(nombreTabla,listaEjercicios);
+            else                    resultado="S47-ERROR_REGISTRO: Error de insercion. Actualize los parametros seleccionados (musulos, tipos...). Pueden haber sido modificados/eliminados.";
+            
+    
+        } catch (SQLException ex) {
+            if(ex.toString().contains("Duplicate")) return resultado="S47-ERROR_REGISTRO:duplicate";            
+            
+            resultado="S47-ERROR_REGISTRO: Error de insercion. Actualize los parametros seleccionados (musulos, tipos...). Pueden haber sido modificados/eliminados.";
+            ex.printStackTrace();
+        }
+        
+        return resultado; 
+    }
+    
+    
+    private String registrarEjerciciosDeLaTabla(String nombreTabla, ArrayList<Object[]> listaEjercicios) {
+        String resultado;
+        
+        int idTabla=0;
+        
+        try {
+            String query1 = "Select id From tabla where nombre=?;";
+            PreparedStatement preparedStatement1 = conexion.prepareStatement(query1);
+            preparedStatement1.setString(1, nombreTabla);
+            ResultSet rs = preparedStatement1.executeQuery();
+            rs.next();
+            idTabla=rs.getInt(1);
+           
+            for(Object[] datosEjercicio: listaEjercicios){
+                int nDia=(int)datosEjercicio[0];
+                int idEjercicio=(int)datosEjercicio[1];
+                
+                int reps=0;
+                int series=0;
+                try{
+                    reps=(int)datosEjercicio[2];
+                    series=(int)datosEjercicio[3];
+                }catch(Exception e){
+                    //Si vienen vacias pues se quedan en 0 y ya está
+                }
+                String tiempo=(String)datosEjercicio[4];
+                
+                try{
+                String query3 = "insert into ej_tabla_mtm (id_ejercicio,id_tabla, dia,series, repeticiones,tiempo) VALUES (?,?,?,?,?,?);";
+                PreparedStatement preparedStatement3 = conexion.prepareStatement(query3);
+                preparedStatement3.setInt(1, idEjercicio);
+                preparedStatement3.setInt(2, idTabla);
+                preparedStatement3.setInt(3, nDia);
+                preparedStatement3.setInt(4, reps);
+                preparedStatement3.setInt(5, series);
+                preparedStatement3.setString(6, tiempo);
+                preparedStatement3.executeUpdate();
+                
+                }catch(MySQLIntegrityConstraintViolationException ex){
+                    //Si hay algun registro de ejercicio duplicado idEjercicio/dia/idTabla (Que no deberia por que esta controlado en la app cliente) no pete todo.
+                }
+            }
+
+        } catch (SQLException ex) {
+            System.out.println(ex);
+        }
+
+        return "S52-TABLA_REGISTRADA";
+    }
+
     
     
 }

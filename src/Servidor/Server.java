@@ -47,6 +47,7 @@ public class Server {
 
     private static void lanzarHilosAtiendeCliente() {
        int PUERTO_RECIBIR_IMAGENES=9004;
+       
        int PUERTO_DEVOLVER_IMAGENES=9003;
        
        Server_Devuelve_Imagen devolverImagenThread=new Server_Devuelve_Imagen(PUERTO_DEVOLVER_IMAGENES);

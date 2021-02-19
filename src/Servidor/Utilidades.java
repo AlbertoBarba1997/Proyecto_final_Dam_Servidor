@@ -71,12 +71,12 @@ public class Utilidades {
      public static Object[] obtenerTrabajador(String parametroTrabajador){
          Object[] atributosTrabajador=new Object[6];
          //atributosTrabajador[0] = Integer.parseInt(obtenerAtributo(parametroTrabajador, 0));
-         atributosTrabajador[0] = obtenerAtributo(parametroTrabajador, 1);
-         atributosTrabajador[1] = obtenerAtributo(parametroTrabajador, 2);
-         atributosTrabajador[2] = obtenerAtributo(parametroTrabajador, 3);
-         atributosTrabajador[3] = Float.parseFloat(obtenerAtributo(parametroTrabajador, 4));
-         atributosTrabajador[4] = obtenerAtributo(parametroTrabajador, 5);
-         atributosTrabajador[5] = obtenerAtributo(parametroTrabajador, 6);
+         atributosTrabajador[0] = obtenerAtributo(parametroTrabajador, 1,'/');
+         atributosTrabajador[1] = obtenerAtributo(parametroTrabajador, 2,'/');
+         atributosTrabajador[2] = obtenerAtributo(parametroTrabajador, 3,'/');
+         atributosTrabajador[3] = Float.parseFloat(obtenerAtributo(parametroTrabajador, 4,'/'));
+         atributosTrabajador[4] = obtenerAtributo(parametroTrabajador, 5,'/');
+         atributosTrabajador[5] = obtenerAtributo(parametroTrabajador, 6,'/');
          
          
          return atributosTrabajador;
@@ -85,17 +85,17 @@ public class Utilidades {
      
       public static Object[] obtenerAtributosClave(String parametroClave) {
         Object[] atributosTrabajador=new Object[6];
-         atributosTrabajador[0] = Integer.parseInt(obtenerAtributo(parametroClave, 0));
-         atributosTrabajador[1] = obtenerAtributo(parametroClave, 1);
-         atributosTrabajador[2] = obtenerAtributo(parametroClave, 2);
+         atributosTrabajador[0] = Integer.parseInt(obtenerAtributo(parametroClave, 0,'/'));
+         atributosTrabajador[1] = obtenerAtributo(parametroClave, 1,'/');
+         atributosTrabajador[2] = obtenerAtributo(parametroClave, 2,'/');
 
          return atributosTrabajador;
     } 
      
      
-     public static String obtenerAtributo(String cadena, int nAtributoBuscado) {
+     public static String obtenerAtributo(String cadena, int nAtributoBuscado, char caracterDelimitador) {
         int nParametro = 0;       //Mide por que parametro va
-        final char caracterDelimitador = '/';
+        
         char[] caracteres = cadena.toCharArray();
         String parametro = "";
 

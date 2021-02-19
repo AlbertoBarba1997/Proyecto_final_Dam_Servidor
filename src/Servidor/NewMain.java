@@ -16,6 +16,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -25,12 +27,30 @@ import java.util.logging.Logger;
  */
 public class NewMain {
 
-    public static ConexionBD conexBD = new ConexionBD();
+    public  ConexionBD conexBD = new ConexionBD();
 
     public static void main(String[] args) throws SQLException, IOException {
 
-        Time hora = Time.valueOf("18:00:00");
-        conexBD.altaHorario(3, 2, 1, hora);
+        
+        NewMain newMain=new NewMain();
+        newMain.ejecutar();
+        
+    }
+    public void ejecutar(){
+        ArrayList<Object[]> listaEjercicios=new ArrayList<Object[]>();
+        Object[] ejercicio1={1,1,10,3,"10 "};
+        Object[] ejercicio2={1,25,null,null,"15 minutos"};
+        Object[] ejercicio3={2,1,10,3,""};
+        Object[] ejercicio4={1,2,6,3,""};
+        listaEjercicios.add(ejercicio1);
+        listaEjercicios.add(ejercicio2);
+        listaEjercicios.add(ejercicio3);
+        listaEjercicios.add(ejercicio4);
+        
+        
+        conexBD.altaTablaModelo("Principiante", 2, listaEjercicios);
+        //conexBD.eliminarFoto(".\\fotos_usuarios\\21.jpg");
+//        System.out.println(conexBD.listarEjercicios());
     }
 
 

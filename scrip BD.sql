@@ -128,7 +128,7 @@ create table tabla_ejercicio_MTM(
 	repeticiones int default null,
 	tiempo time default null,
 
-	PRIMARY KEY(id_ejercicio,id_tabla),
+	PRIMARY KEY(id_ejercicio,id_tabla,dia),
 	FOREIGN KEY (id_ejercicio) REFERENCES EJERCICIO(id), 
     FOREIGN KEY (id_tabla) REFERENCES TABLA(id)	
 

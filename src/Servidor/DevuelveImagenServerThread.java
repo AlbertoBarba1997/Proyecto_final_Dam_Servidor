@@ -36,16 +36,11 @@ public class DevuelveImagenServerThread extends Thread {
             
             BufferedReader in = new BufferedReader( new InputStreamReader(socketCliente.getInputStream()));
             BufferedOutputStream out=new BufferedOutputStream(socketCliente.getOutputStream());
-            
-            
-            
-            
+          
             String inputLine;
 	    Protocol kkp = new Protocol();
             
             byte[] theOutput;
-	    
-//            System.out.println("Entra en DevuelveImagenServerThread, in: "+ in);
             
             while ((inputLine=in.readLine())!=null) {
                 
@@ -57,32 +52,24 @@ public class DevuelveImagenServerThread extends Thread {
                 File imagen=new File(rutaImagen);
                 
                 
-                if(!imagen.exists()){ 
-                    theOutput=new byte[]{ (byte)-1 };
-                }else{
-        
-//                    while ((nBytes = fileInputStream.read(theOutput)) != -1) {
-//                        networkOutputStream.write(data, 0, nRead);
-    }
-                    theOutput=Files.readAllBytes(imagen.toPath());
-//                    System.out.println("Tamaño imagen:"+ theOutput.length);
+                if(imagen.exists()){ 
+                    theOutput = new byte[]{(byte) -1};
+                    theOutput = Files.readAllBytes(imagen.toPath());
+                } else {
+                    theOutput =new byte[]{(byte) -1};
+                }
+                
+                //System.out.println("Tamaño imagen:"+ theOutput.length);
 
 
-                   
-//                }
-               
-                
-                
-                
-		out.write(theOutput,0,theOutput.length);
+                out.write(theOutput, 0, theOutput.length);
                 out.flush();
-                
-                
-	    }
-            System.out.println("Acaba hilo ImagenServerThread.");
-	    out.close();
-	    in.close();
-	    socketCliente.close();
+
+            }
+            //System.out.println("Acaba hilo ImagenServerThread.");
+            out.close();
+            in.close();
+            socketCliente.close();
 
         } catch (IOException ioex) {
             ioex.printStackTrace();
