@@ -1,5 +1,6 @@
 package Servidor;
 
+import HilosSecundarios.EsperaThread;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.sql.CallableStatement;
@@ -45,57 +46,61 @@ public class Protocol {
         if (estado == INICIAL) {
 
             /// 1) LOG CLIENTE
-            if (theInput.contains("C1-LOG_CLIENTE")) 
-            {
-                String usuario = obtenerParametro(theInput, 1);
+            if (theInput.contains("M1-LOG_CLIENTE")) {
+                String correo = obtenerParametro(theInput, 1);
                 String contraseña = obtenerParametro(theInput, 2);
 
-                if (conexionBD.isConexionEstablecida()) {       
+                if (conexionBD.isConexionEstablecida()) {
 
-                    dniUsuario = conexionBD.loginClenteBD(usuario, contraseña);   
+                    theOutput = conexionBD.loginClenteBD(correo, contraseña);
+                    if(theOutput.contains("S1-LOG_CORRECTO")) estado=CLIENTE_LOGUEADO;
 
-                    if (dniUsuario != null) {
-                        theOutput = "S1-LOG_CORRECTO_CL";
-                        estado = CLIENTE_LOGUEADO;
+                }
+                if (theOutput.contains("S2-LOG_INCORRECTO")) {
+                    nIntentosLoguear++;
+                    if (nIntentosLoguear < 3) {
+                        //No hace nada por que no ha superado el maximo de intentos
                     } else {
-                        nIntentosLoguear++;
-                        if(nIntentosLoguear<3){
-                            theOutput = "S3-LOG_INCORRECTO";
-                        }else{                                           
-                            //Para que halla penalizacion de 30 segundos cada 3 fallos
-                            
-                            nEsperas++;         //Aumenta exponencialmente el tiempo de espera por cada 3 fallos 
-                            
-                            //Se pondrá en estado de ESPERA y se lanzará un hilo a modo de temporizador que cuando acabe devolvera el estado a INICIAL
-                            esperaThread=new EsperaThread(this, nEsperas);
-                            esperaThread.start(); 
-                            estado=ESPERA;
-                            nIntentosLoguear=0;
-                   
-                            theOutput = "S7-LOG_INCORRECTO_ESPERA:" + 30 * nEsperas;
-                        }
+                        //Para que halla penalizacion de 30 segundos cada 3 fallos
 
+                        nEsperas++;         //Aumenta exponencialmente el tiempo de espera por cada 3 fallos 
+
+                        //Se pondrá en estado de ESPERA y se lanzará un hilo a modo de temporizador que cuando acabe devolvera el estado a INICIAL
+                        esperaThread = new EsperaThread(this, nEsperas);
+                        esperaThread.start();
+                        estado = ESPERA;
+                        nIntentosLoguear = 0;
+
+                        theOutput = "S4-LOG_BLOQUEADO:" + 30 * nEsperas;
                     }
 
-                } else {
-                    theOutput = "S4-ERROR_CONEXION_BD";
                 }
 
             }
-            /// 2) REGISTRAR CONTRASEÑA CLIENTE
-            else if(theInput.contains("C2-REGISTRAR_CONTRASEÑA"))
-            {
-                String correo=obtenerParametro(theInput, 1);
-                String contraseña=obtenerParametro(theInput, 2);
+            /// 1.5) ALTA CONTRASEÑA NUEVO CLIENTE
+            else if (theInput.contains("M10-SING_UP_CLIENTE")) {
+                String correo = obtenerParametro(theInput, 1);
+                String contraseña = obtenerParametro(theInput, 2);
                 
-                int nResultado=conexionBD.registrarContraseña(correo, contraseña);
-                //El resultado devolverá 0=ERROR  1=REGISTRO CORRECTO 2=CORREO NO REGISTRADO  3=CONTRASEÑA YA REGISTRADA
-                if(nResultado==1){
-                    theOutput="S9-REG_CORRECTO";
-                }else{
-                    theOutput="S8-REG_INCORRECTO_ERROR:"+nResultado;
-                }
+                theOutput=conexionBD.registrarContraseñaCliente(correo,contraseña);
+                
+                
             }
+            
+            
+            /// 2) REGISTRAR CONTRASEÑA CLIENTE
+            else if (theInput.contains("C2-REGISTRAR_CONTRASEÑA")) {
+                    String correo=obtenerParametro(theInput, 1);
+                    String contraseña=obtenerParametro(theInput, 2);
+
+                    int nResultado=conexionBD.registrarContraseña(correo, contraseña);
+                    //El resultado devolverá 0=ERROR  1=REGISTRO CORRECTO 2=CORREO NO REGISTRADO  3=CONTRASEÑA YA REGISTRADA
+                    if(nResultado==1){
+                        theOutput="S9-REG_CORRECTO";
+                    }else{
+                        theOutput="S8-REG_INCORRECTO_ERROR:"+nResultado;
+                    }
+                }
             
             /// 3) LOG TRABAJADOR
             else if(theInput.contains("C4-LOG_TRABAJADOR"))
@@ -123,7 +128,7 @@ public class Protocol {
         else if(estado==ESPERA)
         {
             
-            theOutput="S3-EN_ESPERA:"+esperaThread.getSegundosRestantesEspera();
+            theOutput="S5-ESPERA:"+esperaThread.getSegundosRestantesEspera();
         }
         
         //////////////////////////////////////////////////////////////////////// C)ESTADO : ADMIN LOGUEADO /////////////////////////////////////////////////////////////////////////////////
@@ -190,6 +195,7 @@ public class Protocol {
                         break;
                 }
             }
+            
             //5) FILTRAR TRABAJADOR
             else if (theInput.contains("C10-LISTAR_BUSQUEDA_TRABAJADORES")) 
             {
@@ -233,7 +239,14 @@ public class Protocol {
                 if(eliminado) theOutput="S13-ELIMINACION_COMPLETADA";
                 else theOutput="S14-ERROR_ELIMINACION";
                 
+            }else if (theInput.contains("C59_MODIFICAR_CLAVE")) 
+            {
+                int rol=Integer.parseInt(obtenerParametro(theInput, 1));
+                String nuevaClave = obtenerParametro(theInput, 2);
+                theOutput = conexionBD.actualizarClave(rol,nuevaClave);
             }
+            
+            
             /// CLIENTES ///
             //10) MOSTRAR CLIENTES
             else if(theInput.contains("C15-LISTA_CLIENTES"))
@@ -352,6 +365,10 @@ public class Protocol {
             //22) LISTAR ENTRENADORES
             else if (theInput.contains("C27-LISTAR_ENTRENADORES")) {
                 theOutput = conexionBD.listarEntrenadores();
+            }
+            //49) RESETEAR RESERVA
+            else if (theInput.contains("C46-RESETEAR_RESERVAS")) {
+                theOutput = conexionBD.resetearReservas();
             }
             
             
@@ -517,11 +534,86 @@ public class Protocol {
                 theOutput = conexionBD.altaTablaModelo(nombreTabla,nDias,listaEjercicios);
             }
             //36) ALTA TABLA PERSONALIZADA
-            else if (theInput.contains("C38_ELIMINAR_MUSCULO")) {
-                String nombre=Utilidades.obtenerParametro(theInput, 1);
-                theOutput = conexionBD.bajaMusculo(nombre);
+            else if (theInput.contains("C40-ALTA_TABLA_PERSONALIZADA")) {
+                String datosTabla=Utilidades.obtenerParametro(theInput, 1);
+                System.out.println("atributo 1:"+Utilidades.obtenerAtributo(datosTabla, 0,'&')+"  atributo2:"+Utilidades.obtenerAtributo(datosTabla, 1,'&'));
+                String nombreTabla=Utilidades.obtenerAtributo(datosTabla,0 ,'&');
+                int nDias=Integer.parseInt(Utilidades.obtenerAtributo(datosTabla, 1,'&'));
+                String dniClienteAsociado=Utilidades.obtenerAtributo(datosTabla,2 ,'&');
+                
+                System.out.println("DNI QUE LLEGA :"+ dniClienteAsociado);
+                ArrayList<Object[]> listaEjercicios=obtenerListaEjercicios(theInput);
+                theOutput = conexionBD.altaTablaPersonalizada(nombreTabla, nDias, dniClienteAsociado, listaEjercicios);
             }
-
+            
+            //37) LISTAR TABLAS MODELOS
+            else if(theInput.contains("C41-LISTA_TABLAS_MODELO")){
+                theOutput=conexionBD.listarTablas(null);
+                 
+            }
+            //38) LISTAR TABLAS MODELOS
+            else if(theInput.contains("C42-LISTA_TABLAS_CLIENTE")){
+                String idCliente=Utilidades.obtenerParametro(theInput, 1);
+                theOutput=conexionBD.listarTablas(idCliente);
+                 
+            }
+            //39) ASOCIAR TABLA A UN USUARIO
+            else if(theInput.contains("C43-ASOCIAR-TABLA-A-CLIENTE")){
+                String dniCliente=Utilidades.obtenerParametro(theInput, 1);
+                int idTabla = Integer.parseInt(Utilidades.obtenerParametro(theInput, 2));
+                theOutput=conexionBD.asociarTablaAUsuario(dniCliente,idTabla);
+                 
+            }
+            //40) OBTENER 
+            else if(theInput.contains("C45-CARGAR_EJERCICIOS")){
+                int idTabla = Integer.parseInt(Utilidades.obtenerParametro(theInput, 1));
+                theOutput=conexionBD.listarEjerciciosTabla(idTabla);
+                 
+            }
+        
+        
+        }
+            
+ 
+        // D) CLIENTE LOGUEADO    
+        else if(estado==CLIENTE_LOGUEADO){
+            if(theInput.contains("M3-LISTAR_HORARIOS")){
+                
+                theOutput=conexionBD.listarHorariosMovil();
+                 
+            }
+            else if(theInput.contains("M4-RESERVAR")){
+                int idCliente=Integer.parseInt(Utilidades.obtenerParametro(theInput, 1));
+                int idHorario=Integer.parseInt(Utilidades.obtenerParametro(theInput, 2));
+                theOutput=conexionBD.reservarHorario(idCliente,idHorario);
+                 
+            }
+            else if(theInput.contains("M5-LOG_OUT")){
+                estado=INICIAL;
+                theOutput="S1-CORRECTO";
+                 
+            }
+            else if(theInput.contains("M6-LISTAR_RESERVAS")){
+                int idCliente=Integer.parseInt(Utilidades.obtenerParametro(theInput, 1));
+                theOutput=conexionBD.listarReservas(idCliente);
+                 
+            }
+            else if(theInput.contains("M7-CANCELAR_RESERVA")){
+                int idReserva=Integer.parseInt(Utilidades.obtenerParametro(theInput, 1));
+                theOutput=conexionBD.cancelarReserva(idReserva);
+            }
+            else if(theInput.contains("M8-LISTAR_TABLAS_EJERCICIOS")){
+                int idCliente=Integer.parseInt(Utilidades.obtenerParametro(theInput, 1));
+                theOutput=conexionBD.listarTablasCliente(idCliente);
+            }
+            
+            else if(theInput.contains("M9-LISTAR_EJERCICIOS_TABLA")){
+                int idTabla=Integer.parseInt(Utilidades.obtenerParametro(theInput, 1));
+                theOutput=conexionBD.listarEjerciciosTabla(idTabla);
+            }
+            
+            
+            
         }
     
 

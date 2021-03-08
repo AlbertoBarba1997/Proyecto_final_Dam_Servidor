@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package Servidor;
+package HilosAtiendeImagen;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -21,7 +21,7 @@ import java.net.Socket;
 import java.nio.file.Files;
 
 
-public class RecibeImagenServerThread1 extends Thread {
+public class RecibeImagenServerThread extends Thread {
 
     
     //ESTA ES LA QUE HAY QUE CAMBIAR.
@@ -29,14 +29,13 @@ public class RecibeImagenServerThread1 extends Thread {
     private Socket socketCliente=null;
     
     
-    RecibeImagenServerThread1(Socket accept) {
+    RecibeImagenServerThread(Socket accept) {
         super("ImagenesServerThread");
         this.socketCliente = accept;
-        System.out.println(socketCliente);
+        
     }
     
     public void run() {
-        System.out.println("Entra en RecibeImagenThread");
         try {
             //1. CREA FLUJOS
             BufferedInputStream in =new BufferedInputStream( socketCliente.getInputStream());
@@ -63,14 +62,14 @@ public class RecibeImagenServerThread1 extends Thread {
                 }
 
             }
-            System.out.println(imagenTotal.length);
+            
             
             //3. Una vez tiene la imagen en bytes[] tendra que ASIGNARLE un numero como NOMBRE a la imagen
             String nombreImagen=generarNombreImagen();
             
             //4. CREAR FILE con el nombre de esta imagen y copiar los bytes[] de la imagen recibida anteriormente 
             File imagen=new File(RUTA_CARPETA_IMAGENES+"/"+nombreImagen);
-            System.out.println(imagen.getPath());
+            
             boolean creada=imagen.createNewFile();
             if(!creada){
                 out.write("S23-ERROR_SUBIDA\n");
@@ -82,7 +81,7 @@ public class RecibeImagenServerThread1 extends Thread {
                     
                     out.write("S22-IMAGEN_SUBIDA:" + imagen.getPath() + "\n");
                     out.close();
-                    System.out.println("S22-IMAGEN_SUBIDA:");
+                    
 
                 } catch (IOException ioe) {
                     out.write("S23-ERROR_SUBIDA\n");

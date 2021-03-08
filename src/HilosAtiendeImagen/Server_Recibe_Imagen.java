@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package Servidor;
+package HilosAtiendeImagen;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -34,7 +34,7 @@ public class Server_Recibe_Imagen extends Thread {
         try {
             while (listening) {
 
-                new RecibeImagenServerThread1(serverSocket.accept()).start();
+                new RecibeImagenServerThread(serverSocket.accept()).start();
 
             }
 

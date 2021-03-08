@@ -3,8 +3,9 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package Servidor;
+package HilosSecundarios;
 
+import Servidor.Protocol;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 

@@ -5,6 +5,8 @@
  */
 package Servidor;
 
+import HilosAtiendeImagen.Server_Devuelve_Imagen;
+import HilosAtiendeImagen.Server_Recibe_Imagen;
 import java.io.IOException;
 import java.net.ServerSocket;
 
@@ -20,11 +22,14 @@ public class Server {
        boolean listening = true;
        
        //Lanzar Hilos para atender las peticiones de los diferentes Socket para recibir imagenes como de enviarlas y poder mostrarlas desde la interfaz (Diferentes socket por que tendra diferentes flujos).
-       lanzarHilosAtiendeCliente();
+       lanzarHilosAtiendeClienteImagenes();
+       lanzarHiloEliminacionPeriodicaReservas();
+       
        
        //Atender Socket principal (funciones BD)
        try {
             serverSocket = new ServerSocket(PUERTO_PRINCIPAL);  
+            //System.out.println(serverSocket.get);
             
             
         } catch (IOException e) {
@@ -37,7 +42,7 @@ public class Server {
            
            new  ServerThread(serverSocket.accept()).start();
           
-           System.out.println("Lanza los dos hilos");
+          
        }
        
        serverSocket.close();
@@ -45,7 +50,7 @@ public class Server {
     }
     
 
-    private static void lanzarHilosAtiendeCliente() {
+    private static void lanzarHilosAtiendeClienteImagenes() {
        int PUERTO_RECIBIR_IMAGENES=9004;
        
        int PUERTO_DEVOLVER_IMAGENES=9003;
@@ -60,6 +65,12 @@ public class Server {
        recibirImagenThread.start();
        
         
+    }
+
+    private static void lanzarHiloEliminacionPeriodicaReservas() {
+        EliminarReservasPeriodicamente_Thread hiloEliminarReservas=new EliminarReservasPeriodicamente_Thread();
+        hiloEliminarReservas.setDaemon(true);
+        hiloEliminarReservas.start();
     }
     
 }

@@ -14,7 +14,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -60,33 +64,46 @@ public class ConexionBD {
     }
 
     public String loginClenteBD(String usuario, String contraseña) {
-
-        String dni = null;
+        //Obtener TODOS los datos del usuario, para desplegarlos automaticamente con foto y todo.
+        String resultado = "S2-LOG_INCORRECTO";
         System.out.println("correo:" + usuario);
         System.out.println("contraseña" + contraseña);
 
         try {
-            String query = "SELECT DNI FROM Usuario WHERE correo=? AND contraseña=? ;";
+            String query = "SELECT id, DNI, nombre, apellido, correo, contraseña, rutaImg, peso, altura  FROM usuario WHERE correo=? AND contraseña=?";
             PreparedStatement preparedStatement = conexion.prepareStatement(query);
 
             preparedStatement.setString(1, usuario);
             preparedStatement.setString(2, contraseña);
 
             ResultSet rs = preparedStatement.executeQuery();
-
-            while (rs.next()) {
-                dni=rs.getString(1);
-                System.out.println("ConexionDB.java DNI:"+dni); //Prueba
-            }
+            
+            if(rs.next()!=false){
+                int id=rs.getInt(1);
+                String DNI=rs.getString(2);
+                String nombre=rs.getString(3);
+                String apellido=rs.getString(4);
+                String correo=rs.getString(5);
+                contraseña=rs.getString(6);
+                String rutaImg=rs.getString(7);
+                int peso=rs.getInt(8);
+                float altura=rs.getFloat(9);
+                
+                resultado="S1-LOG_CORRECTO:"+id+"&"+DNI+"&"+nombre+"&"+apellido+"&"+correo+"&"+contraseña+"&"+rutaImg+"&"+peso+"&"+altura;
+                
+            }else{
+                resultado="S2-LOG_INCORRECTO";
+            }   
 
             preparedStatement.close();
             rs.close();
 
         } catch (SQLException ex) {
+            resultado="S3-ERROR_DB";
             Logger.getLogger(Protocol.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-        return dni;
+        return resultado;
     }
     
     
@@ -313,11 +330,13 @@ public class ConexionBD {
            
             
             if(filasModificadas>0) resultado=1;
-            else resultado=2; //La unica razon por la que puede no registrarse es por que el DNI ya este registrado
+            else resultado=2; //La unica razon por la que puede no registrarse es por que el DNI ya este registrado, pero puede taambien saltar en este caso sql exception duplicate
             
             
            
         } catch (SQLException ex) {
+            System.out.println(ex.getMessage());
+            if(ex.getMessage().contains("Duplicate")) return 2;
             resultado=0;
         }
         
@@ -326,7 +345,7 @@ public class ConexionBD {
     
     
 
-    int modificarTrabajador(String dni, String nombre, String apellidos, String correo, float salario, int rol) {
+    public int modificarTrabajador(String dni, String nombre, String apellidos, String correo, float salario, int rol) {
         int resultado=0;
         try {
             String query = "UPDATE usuario SET nombre = ?, apellido = ?, correo = ?, salario = ?, id_rol=? WHERE DNI=?;";
@@ -350,6 +369,7 @@ public class ConexionBD {
 
 
         } catch (SQLException ex) {
+            if(ex.getMessage().contains("Duplicate")) return 2;
             resultado=0;
         }
         
@@ -857,7 +877,7 @@ public class ConexionBD {
                 int minutos=horaTime.getMinutes();
                 String hora=horas+":"+minutos;
                 if(minutos==0) hora+="0"; //Esto por que si es 0 imprime 14:0 en lugar de 14:00
-                System.out.println("Hora:"+hora);
+                
 
                 if (registros < 1) {
                     resultado += ":";  //Para asi saber si hay almenos 1 trabajador registrado
@@ -1399,6 +1419,573 @@ public class ConexionBD {
         return "S52-TABLA_REGISTRADA";
     }
 
+    String listarTablas(String dniCliente) {
+        String resultado = "S53-LISTA_TABLAS";
+        try {
+            String query;
+            PreparedStatement preparedStatement;
+            if(dniCliente==null){
+                query = "SELECT t.id, t.nombre,t.dias FROM tabla t WHERE t.tabla_base=?;"; //(El rol 3 son los clientes)
+                preparedStatement = conexion.prepareStatement(query);
+                preparedStatement.setBoolean(1, true);
+
+            }else{
+                query = "SELECT t.id, t.nombre,t.dias FROM tabla t INNER JOIN tabla_usuario_mtm ut ON t.id=ut.id_tabla INNER JOIN usuario u ON ut.id_usuario=u.id WHERE u.DNI=?;"; //(El rol 3 son los clientes)
+                preparedStatement = conexion.prepareStatement(query);
+                preparedStatement.setString(1, dniCliente);
+            }
+            
+
+            ResultSet rs = preparedStatement.executeQuery();
+
+            int registros = 0;
+
+            while (rs.next()) {
+                
+                int id = rs.getInt(1);
+                String nombre = rs.getString(2);
+                int nDias = rs.getInt(3);
+
+
+                if (registros < 1) {
+                    resultado += ":";  //Para asi saber si hay almenos 1 tabla registrada
+                } else {
+                    resultado += ",";  //Delimitador entre tabla y tabla
+                }
+                resultado += id + "$" + nombre + "$" + nDias;
+                registros++;
+                //Ira añadiendo al mensaje resultado todos los registros de tablas, separando sus atributos con "/"
+
+            }
+
+        } catch (SQLException ex) {
+            resultado = "S12-ERROR_QUERY";
+        }
+
+        return resultado;
+    }
+
+    String asociarTablaAUsuario(String dniCliente, int idTabla) {
+        String resultado;
+        System.out.println("---------Dni:"+dniCliente+"  IdTabla:"+idTabla);
+        int idCliente;
+
+        try {
+            String query1 = "SELECT id FROM usuario WHERE dni=?;";
+            PreparedStatement preparedStatement1 = conexion.prepareStatement(query1);
+            preparedStatement1.setString(1, dniCliente);
+            ResultSet rs = preparedStatement1.executeQuery();
+            rs.next();
+            idCliente = rs.getInt(1);
+            System.out.println("-------idCliente:"+idCliente);
+            try {
+                String query3 = "INSERT INTO tabla_usuario_mtm (id_tabla, id_usuario) VALUES (?,?);";
+                PreparedStatement preparedStatement3 = conexion.prepareStatement(query3);
+                preparedStatement3.setInt(1, idTabla);
+                preparedStatement3.setInt(2, idCliente);
+                preparedStatement3.executeUpdate();
+                return "S54-CORRECTO";
+            } catch (MySQLIntegrityConstraintViolationException ex) {
+                return "S55-INCORRECTO:duplicate";
+            }
+        } catch (SQLException ex) {
+            System.out.println(ex);
+            return "S12-ERROR_QUERY";
+        }
+
+        
+    }
+
+    String listarHorariosMovil() {
+        String resultado = "S35-HORARIO";
+        try {
+            String query = "SELECT h.id,c.nombre,u.nombre, h.dia, h.hora, c.rutaImg, c.aforo_maximo, c.descripcion FROM horario h  INNER JOIN clase c ON h.id_clase=c.id INNER JOIN usuario u ON h.id_entrenador=u.id ORDER BY h.hora ASC;";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+
+            ResultSet rs = preparedStatement.executeQuery();
+
+            int registros = 0;
+
+            while (rs.next()) {
+
+                int id = rs.getInt(1);
+                String nombreClase = rs.getString(2);
+                String nombreEntrenador = rs.getString(3);
+                int dia = rs.getInt(4);
+                Time horaTime = rs.getTime(5);
+                String rutaImg=rs.getString(6);
+                int aforoMaximo= rs.getInt(7);
+                String descripcion=rs.getString(8);
+                int horas = horaTime.getHours();
+                int minutos = horaTime.getMinutes();
+                String hora = horas + ":" + minutos;
+                
+                //Calcular afoto actual
+                int aforoActual;
+                try {
+                    String query2 = "SELECT count(id_usuario) FROM reserva_usu_horario WHERE id_horario=?";
+                    PreparedStatement preparedStatement2 = conexion.prepareStatement(query2);
+                    preparedStatement2.setInt(1, id);
+                    ResultSet rs2 = preparedStatement2.executeQuery();
+                    rs2.next();
+                    aforoActual=rs2.getInt(1);
+                } catch (Exception e) {
+                    aforoActual=0;
+                }
+                
+
+                
+                if (minutos == 0) {
+                    hora += "0"; //Esto por que si es 0 imprime 14:0 en lugar de 14:00
+                }
+                
+
+                if (registros < 1) {
+                    resultado += ":";  //Para asi saber si hay almenos 1 trabajador registrado
+                } else {
+                    resultado += "&";  //Delimitador entre trabajador y trabajador
+                }
+                resultado += id + "$" + nombreClase + "$" + nombreEntrenador + "$" + dia + "$" + hora + "$" + rutaImg + "$" + aforoMaximo + "$" + aforoActual + "$" + descripcion;
+                registros++;
+                //Ira añadiendo al mensaje resultado todos los registros de trabajadores, separando sus atributos con "/"
+            }
+        } catch (SQLException ex) {
+            resultado = "S12-ERROR_QUERY";
+        }
+
+        return resultado;
+    }
+
+    String reservarHorario(int idCliente, int idHorario) {
+        String resultado = "S60-ERROR";
+        try {
+            if (comprobarAforo(idHorario)) {
+                String query = "INSERT INTO reserva_usu_horario (id_usuario,id_horario) VALUES (?,?)";
+                PreparedStatement preparedStatement = conexion.prepareStatement(query);
+                preparedStatement.setInt(1, idCliente);
+                preparedStatement.setInt(2, idHorario);
+
+                int registrado = preparedStatement.executeUpdate();
+                if (registrado > 0) {
+                    resultado = "S57-RESERVADA";
+                }
+
+            } else {
+                resultado= "S58-AFORO_COMPLETO";
+            }
+
+        } catch (SQLException ex) {
+            if(ex.getMessage().contains("Duplicate")){
+                resultado= "S59-YA_RESERVADA";
+            }else{
+                resultado = "S60-ERROR";
+            }
+        }
+
+        return resultado;
+    }
+
     
     
+    private boolean comprobarAforo(int idHorario) {
+        boolean disponible=false;
+        try {
+           
+                String query="SELECT c.aforo_maximo, COUNT(r.id_usuario)  From horario h INNER JOIN clase c ON h.id_clase=c.id INNER JOIN reserva_usu_horario r ON h.id= r.id_horario WHERE h.id=?;";
+                PreparedStatement preparedStatement = conexion.prepareStatement(query);
+                preparedStatement.setInt(1, idHorario);
+                
+
+                ResultSet rs= preparedStatement.executeQuery();
+                rs.next();
+                int aforoMaximo=rs.getInt(1);
+                int aforoActual=rs.getInt(2);
+                disponible=aforoActual<aforoMaximo;
+            
+
+        } catch (SQLException ex) {
+            return false;
+        }
+        
+        return disponible;
+    }
+
+    String listarReservas(int idCliente) {
+        String resultado = "S61-LISTA_RESERVAS";
+        try {
+           
+            PreparedStatement preparedStatement;
+            
+            String query = "SELECT r.id, c.nombre, h.dia,h.hora FROM reserva_usu_horario r INNER JOIN horario h on r.id_horario=h.id INNER JOIN clase c ON h.id_clase=c.id WHERE r.id_usuario=?;"; //(El rol 3 son los clientes)
+            preparedStatement = conexion.prepareStatement(query);
+            preparedStatement.setInt(1, idCliente);
+
+            ResultSet rs = preparedStatement.executeQuery();
+
+            int registros = 0;
+
+            while (rs.next()) {
+                
+                int idReserva = rs.getInt(1);
+                String nombreClase=rs.getString(2);
+                int dia = rs.getInt(3);
+                Time horaTime=rs.getTime(4);                
+                
+                int horas=horaTime.getHours();
+                int minutos=horaTime.getMinutes();
+                String hora=horas+":"+minutos;
+                if(minutos==0) hora+="0"; //Esto por que si es 0 imprime 14:0 en lugar de 14:00
+
+
+                if (registros < 1) {
+                    resultado += ":";  //Para asi saber si hay almenos 1 tabla registrada
+                } else {
+                    resultado += "&";  //Delimitador entre tabla y tabla
+                }
+                resultado += idReserva + "$" + nombreClase + "$" + dia + "$" + hora;
+                registros++;
+                //Ira añadiendo al mensaje resultado todos los registros de tablas, separando sus atributos con "/"
+
+            }
+
+        } catch (SQLException ex) {
+            resultado = "S60-ERROR";
+        }
+
+        return resultado;    
+    }
+
+    public String cancelarReserva(int idReserva) {
+        String resultado="S60-ERROR";
+        try {
+            String query = "DELETE FROM reserva_usu_horario WHERE id=?;";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            preparedStatement.setInt(1, idReserva);
+
+            int filasModificadas= preparedStatement.executeUpdate();
+            
+            if(filasModificadas>0) resultado="S62-CANCELACION_CORRECTA";
+            
+            
+           
+        } catch (SQLException ex) {
+            resultado="S60-ERROR";
+        }
+        
+        return resultado;
+    }
+
+    String listarTablasCliente(int idCliente) {
+        String resultado = "S63-LISTA_TABLAS";
+        try {
+           
+            PreparedStatement preparedStatement;
+            
+            String query = "SELECT t.id,t.nombre,t.dias FROM tabla t INNER JOIN tabla_usuario_mtm tu ON t.id=tu.id_tabla WHERE tu.id_usuario=?;"; //(El rol 3 son los clientes)
+            preparedStatement = conexion.prepareStatement(query);
+            preparedStatement.setInt(1, idCliente);
+
+            ResultSet rs = preparedStatement.executeQuery();
+
+            int registros = 0;
+
+            while (rs.next()) {
+                
+                int idTabla = rs.getInt(1);
+                String nombreTabla=rs.getString(2);
+                int nDias = rs.getInt(3);
+               
+                if (registros < 1) {
+                    resultado += ":";  //Para asi saber si hay almenos 1 tabla registrada
+                } else {
+                    resultado += "&";  //Delimitador entre tabla y tabla
+                }
+                resultado += idTabla + "$" + nombreTabla + "$" + nDias;
+                registros++;
+                //Ira añadiendo al mensaje resultado todos los registros de tablas, separando sus atributos con "/"
+
+            }
+
+        } catch (SQLException ex) {
+            resultado = "S60-ERROR";
+        }
+
+        return resultado;   
+
+    }
+
+    
+    public String listarEjerciciosTabla(int idTabla) {
+        String resultado = "S64-LISTA_EJERCICIOS_DE_TABLA";
+        try {
+           
+            PreparedStatement preparedStatement;
+            
+            String query = "SELECT e.id,et.dia ,e.nombre,e.descripcion,e.tipo,e.rutaImg,et.series,et.repeticiones,et.tiempo  FROM ejercicio e INNER JOIN ej_tabla_mtm et ON e.id=et.id_ejercicio WHERE et.id_tabla=?;";
+            preparedStatement = conexion.prepareStatement(query);
+            preparedStatement.setInt(1, idTabla);
+
+            ResultSet rs = preparedStatement.executeQuery();
+
+            int registros = 0;
+
+            while (rs.next()) {
+                
+                int idEjercicio = rs.getInt(1);
+                int dia= rs.getInt(2);
+                String nombre=rs.getString(3);
+                String descripcion=rs.getString(4);
+                String tipo=rs.getString(5);
+                String rutaImg=rs.getString(6);
+                int series=rs.getInt(7);
+                int repeticiones=rs.getInt(8);
+                String tiempo=rs.getString(9);
+               
+                         
+
+                if (registros < 1) {
+                    resultado += ":";  //Para asi saber si hay almenos 1 tabla registrada
+                } else {
+                    resultado += "&";  //Delimitador entre tabla y tabla
+                }
+                resultado += idEjercicio + "$" + dia + "$" + nombre + "$" + descripcion+ "$" +tipo+ "$" +rutaImg+ "$" +series+ "$" +repeticiones+ "$" +tiempo;
+                registros++;
+                //Ira añadiendo al mensaje resultado todos los registros de tablas, separando sus atributos con "/"
+
+            }
+
+        } catch (SQLException ex) {
+            resultado = "S60-ERROR";
+        }
+
+        return resultado;       }
+
+    String registrarContraseñaCliente(String correo, String contraseña) {
+        String resultado = "S66-ERROR_REGISTRO";
+        //1. Comprobar que halla un usuario con ese correo y que su contraseña sea null, para establecerla por primera vez
+        try {
+
+            PreparedStatement preparedStatement;
+
+            String query = "SELECT contraseña FROM usuario WHERE correo=?";
+            preparedStatement = conexion.prepareStatement(query);
+            preparedStatement.setString(1, correo);
+
+            ResultSet rs = preparedStatement.executeQuery();
+
+            if (rs.next()) {
+                try {
+                    String contraseñaa = rs.getString(1);
+                    if (contraseñaa.isEmpty()) {
+                        //Esta vacia, puede hacer cambiar la contraseña
+                         
+                        try {
+                            String query2 = "UPDATE usuario SET contraseña=? WHERE correo=?";
+                            PreparedStatement preparedStatement2 = conexion.prepareStatement(query);
+                            preparedStatement2.setString(1, contraseña);
+                            preparedStatement2.setString(2, correo);
+
+                            int filasModificadas = preparedStatement.executeUpdate();
+                            //System.out.println("Filas modificadas(Eliminando):"+filasModificadas);
+
+                            if (filasModificadas > 0) {
+                                resultado = "S65-REGISTRO_CORRECTO";
+                            }else{
+                                resultado = "S66-ERROR_REGISTRO:Error de insercion. Servidor en mantenimiento.";
+                            }
+
+                        } catch (SQLException ex) {
+                            ex.printStackTrace();
+                            resultado = "S60-ERROR";
+                        }
+
+                    } else {
+                        resultado = "S66-ERROR_REGISTRO:Este correo ya esta registrado y tiene una contraseña asignada.";
+                    }
+
+                } catch (NullPointerException ne) {
+                    //Es null,  puede hacer cambiar la contraseña
+                    try {
+                            String query2 = "UPDATE usuario SET contraseña= ? WHERE correo= ?;";
+                            PreparedStatement preparedStatement2 = conexion.prepareStatement(query2);
+                            preparedStatement2.setString(1, contraseña);
+                            preparedStatement2.setString(2, correo);
+
+                            int filasModificadas = preparedStatement2.executeUpdate();
+                            //System.out.println("Filas modificadas(Eliminando):"+filasModificadas);
+
+                            if (filasModificadas > 0) {
+                                resultado = "S65-REGISTRO_CORRECTO";
+                            }else{
+                                resultado = "S66-ERROR_REGISTRO:Error de insercion. Servidor en mantenimiento.";
+                            }
+
+                        } catch (SQLException ex) {
+                            ex.printStackTrace();
+                            resultado = "S60-ERROR";
+                        }
+                    
+                }
+            } else {
+                resultado = "S66-ERROR_REGISTRO:No existe ningun usuario registrado con este correo.";
+            }
+            
+        } catch (SQLException ex) {
+            resultado = "S60-ERROR";
+        }
+        
+        return resultado;
+        
+    }
+
+    public String altaTablaPersonalizada(String nombreTabla, int nDias,String dni, ArrayList<Object[]> listaEjercicios) {
+       String resultado;
+       
+       int idTablaCreada=0;
+       int idCliente=0;
+        try {
+            //1.Crear Tabla
+            String query = "INSERT INTO tabla(nombre, dias, tabla_Base) VALUES (?, ?, ?);";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            
+           
+            preparedStatement.setString(1, nombreTabla);
+            preparedStatement.setInt(2, nDias);
+            preparedStatement.setBoolean(3, false);            
+
+            int filasModificadas= preparedStatement.executeUpdate();
+            if(filasModificadas>0)  resultado=registrarEjerciciosDeLaTabla(nombreTabla,listaEjercicios);
+            else                    resultado="S47-ERROR_REGISTRO: Error de insercion. Actualize los parametros seleccionados (musulos, tipos...). Pueden haber sido modificados/eliminados.";
+            
+            //2. Obtener id de la tabla para asociarselo al cliente
+            query = "SELECT id FROM tabla WHERE nombre=?";
+            preparedStatement = conexion.prepareStatement(query);
+            preparedStatement.setString(1, nombreTabla);
+
+            ResultSet rs = preparedStatement.executeQuery();
+
+            rs.next();
+            idTablaCreada=rs.getInt(1);
+            
+            //3. Obtener id del cliente
+            query = "SELECT id FROM usuario WHERE dni=?";
+            preparedStatement = conexion.prepareStatement(query);
+            preparedStatement.setString(1, dni);
+
+            rs = preparedStatement.executeQuery();
+
+            rs.next();
+            idCliente=rs.getInt(1);
+            
+            //System.out.println("ID CLIENTE:"+idCliente);
+            //System.out.println("ID TABLA:"+idTablaCreada);
+            
+            //4. Asociar tabla a usuario
+            query = "INSERT INTO tabla_usuario_mtm(id_usuario, id_tabla) VALUES (?,?);";
+            preparedStatement = conexion.prepareStatement(query);
+            preparedStatement.setInt(1, idCliente);
+            preparedStatement.setInt(2, idTablaCreada);
+            
+
+            int filasAfectadas = preparedStatement.executeUpdate();
+            
+            if(filasAfectadas>0){
+                resultado="S52-TABLA_REGISTRADA";
+            }
+            
+            
+            
+            
+            
+        } catch (SQLException ex) {
+            if(ex.toString().contains("Duplicate")) return resultado="S47-ERROR_REGISTRO:duplicate";            
+            
+            resultado="S47-ERROR_REGISTRO: Error de insercion. Actualize los parametros seleccionados (musulos, tipos...). Pueden haber sido modificados/eliminados.";
+            ex.printStackTrace();
+        }
+        
+        return resultado; 
+    }
+
+    public String resetearReservas() {
+        String resultado="S68-RESETEADAS";
+        try {
+            String query = "DELETE FROM reserva_usu_horario;;";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+
+            int filasModificadas = preparedStatement.executeUpdate();
+
+            
+            
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            resultado="S69-ERROR_RESETEO";
+        }
+        
+        return resultado;
+    }
+
+    public void eliminarReservasAntiguas() {
+        //Elimina todas las reservas hechas antes de 2 dias atras 
+        //(Ya que solo se puede reservar el mismo dia o al siguiente, y en la BD se almacena cuando se realiza la reserva, no para cuando es)
+        
+        //1. Obtiene la fecha de 2 dias atras con LocalDate
+        LocalDate fechaDosDiasAtras=LocalDate.now().minusDays(2);
+        
+        
+        //2. Transforma el LocalDate a Date
+        ZoneId defaultZoneId = ZoneId.systemDefault();
+        Date fecha = Date.from(fechaDosDiasAtras.atStartOfDay(defaultZoneId).toInstant());
+        
+               
+        try {
+            //3. Realiza la Query que elimina todas las reservas que hallan sido realizadas hace dos dias o antes
+            String query = "DELETE FROM reserva_usu_horario WHERE fecha<=?";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            preparedStatement.setDate(1, new java.sql.Date(fecha.getTime()));
+            
+            int reservasEliminadas=preparedStatement.executeUpdate();
+            System.out.println("RESERVAS ELIMINADAS:"+reservasEliminadas);
+            
+
+            
+            
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            
+        }
+        
+        
+    }
+
+    String actualizarClave(int rol, String nuevaClave) {
+        String resultado="S0-ERROR";
+        try {
+            String query = "UPDATE rol SET clave=? WHERE id=?;";
+            PreparedStatement preparedStatement = conexion.prepareStatement(query);
+            
+            preparedStatement.setString(1, nuevaClave);
+            preparedStatement.setInt(2, rol);
+
+            int filasModificadas = preparedStatement.executeUpdate();
+
+            if (filasModificadas > 0) {
+                resultado = "S13-CLAVE_ACTUALIZADA";
+            } 
+
+
+        } catch (SQLException ex) {
+           
+        }
+        
+        return resultado;
+    }
+    
+    
+
+    
+
+
 }
+
+    
